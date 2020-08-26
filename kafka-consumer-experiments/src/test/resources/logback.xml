@@ -1,0 +1,27 @@
+<configuration>
+    <jmxConfigurator />
+
+    <shutdownHook class="ch.qos.logback.core.hook.DelayingShutdownHook"/>
+
+    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+        <resetJUL>true</resetJUL>
+    </contextListener>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss:SSS} thread=%thread level=%level logger=%logger{70} %msg %replace(%ex){'[\n]+', '\\n'}%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>${EDI_LOG_QUEUE_SIZE:-500}</queueSize>
+        <discardingThreshold>${EDI_LOG_DISCARD_THRESHOLD:-0}</discardingThreshold>
+        <appender-ref ref="STDOUT" />
+    </appender>
+
+    <root level="${LOG_LEVEL:-INFO}">
+        <appender-ref ref="ASYNC" />
+    </root>
+</configuration>

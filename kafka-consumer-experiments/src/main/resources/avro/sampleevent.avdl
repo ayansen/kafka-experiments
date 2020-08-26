@@ -1,0 +1,7 @@
+@namespace("ayansen.programming.avro")
+protocol SampleEventProtocol {
+  record SampleEvent {
+    string id;
+    string eventName;
+  }
+}
