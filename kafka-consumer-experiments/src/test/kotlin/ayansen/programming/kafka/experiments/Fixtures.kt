@@ -16,13 +16,8 @@
 package ayansen.programming.kafka.experiments
 
 import ayansen.programming.avro.SampleEvent
-import ayansen.programming.avro.SampleEvent.newBuilder
-import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.common.serialization.Deserializer
-import org.apache.kafka.common.serialization.Serializer
-import java.util.*
+
+data class KeyValueTimestamp<T, U>(val key: T, val value: U, val timestamp: Long)
 
 
 object Fixtures {
@@ -32,35 +27,12 @@ object Fixtures {
     const val APP_GROUP_ID = "test_application"
     const val CLIENT_ID = "test_client"
 
-    fun generateSampleEvents(numberOfEvents: Int, eventName: String): List<SampleEvent> =
+    fun generateSampleEvents(numberOfEvents: Int, eventName: String): List<KeyValueTimestamp<String, SampleEvent>> =
         (1..numberOfEvents).map {
-            newBuilder()
+            val event = SampleEvent.newBuilder()
                 .setId(it.toString())
                 .setEventName(eventName)
                 .build()
+            KeyValueTimestamp(eventName, event, it * 100L)
         }
-
-    fun <K, V> getTestProducer(keySerializer: Serializer<K>, valueSerializer: Serializer<V>): KafkaProducer<K, V> {
-        val config = Properties()
-        config["client.id"] = CLIENT_ID
-        config["bootstrap.servers"] = KAFKA_BROKERS
-        config["acks"] = "all"
-        return KafkaProducer(config, keySerializer, valueSerializer)
-    }
-
-    fun <K, V> getTestConsumer(
-        keyDeserializer: Deserializer<K>,
-        valueDeserializer: Deserializer<V>,
-        topics:
-        List<String>
-    ): KafkaConsumer<K, V> {
-        val config = Properties()
-        config[ConsumerConfig.CLIENT_ID_CONFIG] = "integration-test-consumer-${(0..100).random()}"
-        config[ConsumerConfig.GROUP_ID_CONFIG] = "integration-test-consumers-${(0..100).random()}"
-        config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = KAFKA_BROKERS
-        config[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "latest"
-        val consumer = KafkaConsumer(config, keyDeserializer, valueDeserializer)
-        consumer.subscribe(topics)
-        return consumer
-    }
 }

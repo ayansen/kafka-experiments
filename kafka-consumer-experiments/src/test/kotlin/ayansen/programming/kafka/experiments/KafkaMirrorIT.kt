@@ -15,40 +15,31 @@
  */
 package ayansen.programming.kafka.experiments
 
+import ayansen.programming.avro.SampleEvent
 import ayansen.programming.kafka.experiments.Fixtures.APP_GROUP_ID
-import ayansen.programming.kafka.experiments.Fixtures.KAFKA_BROKERS
-import ayansen.programming.kafka.experiments.Fixtures.SCHEMA_REGISTRY_URL
+import ayansen.programming.kafka.experiments.Fixtures.generateSampleEvents
 import io.confluent.kafka.serializers.KafkaAvroDeserializer
 import io.confluent.kafka.serializers.KafkaAvroSerializer
 import org.apache.kafka.clients.admin.KafkaAdminClient
 import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.time.Duration
 import java.util.*
+import kotlin.test.assertEquals
 
 class KafkaMirrorIT {
-    private val consumerProperties: Properties = mapOf(
-        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to KAFKA_BROKERS,
-        ConsumerConfig.GROUP_ID_CONFIG to APP_GROUP_ID,
-        "schema.registry.url" to SCHEMA_REGISTRY_URL
-    ).toProperties()
-    private val producerProperties: Properties = mapOf(
-        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to KAFKA_BROKERS,
-        "schema.registry.url" to SCHEMA_REGISTRY_URL
-    ).toProperties()
-    private val kafkaAdminClient = KafkaAdminClient.create(consumerProperties)
+
+    private val kafkaAdminClient = KafkaAdminClient.create(getConsumerProperties())
     private val appConsumerTopic: String = "test_topic_v1"
     private val appProducerTopic: String = "test_topic_mirrored_v1"
     private val kafkaMirror = KafkaMirror(
-        consumerProperties,
-        producerProperties,
+        getConsumerProperties(),
+        getProducerProperties(),
         appConsumerTopic,
         appProducerTopic
     )
@@ -79,41 +70,53 @@ class KafkaMirrorIT {
      */
     @Test
     fun `test ordering of events for a particular partition assigned based on record key`() {
-        val firstSample = Fixtures.generateSampleEvents(10, "firstSample")
-        val secondSample = Fixtures.generateSampleEvents(10, "secondSample")
+        val firstSample = generateSampleEvents(10, "firstSample")
+        val secondSample = generateSampleEvents(10, "secondSample")
         kafkaMirror.processRecords(500, 2)
-        val testProducer = Fixtures.getTestProducer(
-            StringSerializer(),
-            Utils.getAvroSerializer(SCHEMA_REGISTRY_URL)
+        IntegrationTestUtils.produceSynchronously(
+            false,
+            appConsumerTopic,
+            1,
+            firstSample
         )
-        val testConsumer = Fixtures.getTestConsumer(
-            StringDeserializer(),
-            Utils.getAvroDeserializer(SCHEMA_REGISTRY_URL),
-            listOf(appProducerTopic)
+        IntegrationTestUtils.produceSynchronously(
+            false,
+            appConsumerTopic,
+            2,
+            secondSample
         )
-        firstSample.forEach {
-            testProducer.send(
-                ProducerRecord(
-                    appConsumerTopic,
-                    1,
-                    it.eventName.toString(),
-                    it
-                )
-            )
-        }
-        firstSample.forEach {
-            testProducer.send(
-                ProducerRecord(
-                    appConsumerTopic,
-                    2,
-                    it.eventName.toString(),
-                    it
-                )
-            )
-        }
-        val consumedRecords = mutableListOf<ConsumerRecord<String, Any>>()
-        while (consumedRecords.size == 20) {
-            consumedRecords.addAll(testConsumer.poll(Duration.ofMillis(5000)).records(appProducerTopic))
-        }
+        val consumedRecords =
+            IntegrationTestUtils.waitUntilMinRecordsReceived<String, SampleEvent>(appProducerTopic, 20, 20000)
+        val consumedFirstSampleEvents =
+            consumedRecords.filter { it.value().eventName == "firstSample" }.sortedBy { it.timestamp() }
+                .map { it.value() }
+        val consumedSecondSampleEvents =
+            consumedRecords.filter { it.value().eventName == "secondSample" }.sortedBy { it.timestamp() }
+                .map { it.value() }
+        assertEquals(consumedFirstSampleEvents, firstSample.map { it.value })
+        assertEquals(consumedSecondSampleEvents, secondSample.map { it.value })
+    }
+
+    private fun getConsumerProperties(): Properties {
+        val config = Properties()
+        config[ConsumerConfig.GROUP_ID_CONFIG] = APP_GROUP_ID
+        config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = Fixtures.KAFKA_BROKERS
+        config["schema.registry.url"] = Fixtures.SCHEMA_REGISTRY_URL
+        config[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "latest"
+        config[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = "true"
+        config[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
+        config[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = KafkaAvroDeserializer::class.java
+        return config
+    }
+
+    private fun getProducerProperties(): Properties {
+        val config = Properties()
+        config["client.id"] = Fixtures.CLIENT_ID
+        config["bootstrap.servers"] = Fixtures.KAFKA_BROKERS
+        config["schema.registry.url"] = Fixtures.SCHEMA_REGISTRY_URL
+        config["acks"] = "all"
+        config[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        config[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = KafkaAvroSerializer::class.java
+        return config
     }
 }

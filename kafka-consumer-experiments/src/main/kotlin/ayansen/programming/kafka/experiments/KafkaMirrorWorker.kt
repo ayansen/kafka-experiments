@@ -18,8 +18,6 @@ package ayansen.programming.kafka.experiments
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.kafka.common.serialization.StringSerializer
 import java.lang.Thread.sleep
 import java.time.Duration
 import java.util.*
@@ -35,23 +33,12 @@ class KafkaMirrorWorker(
         private const val POLL_INTERVAL_IN_MS = 1000L
     }
 
-    private val consumer: KafkaConsumer<String, Any> =
-        KafkaConsumer(
-            consumerConfig,
-            StringDeserializer(),
-            Utils.getAvroDeserializer(consumerConfig.getProperty("schema.registry.url"))
-        )
-    private val producer: KafkaProducer<String, Any> =
-        KafkaProducer(
-            producerConfig,
-            StringSerializer(),
-            Utils.getAvroSerializer(consumerConfig.getProperty("schema.registry.url"))
-        )
+    private val consumer: KafkaConsumer<String, Any> = KafkaConsumer(consumerConfig)
+    private val producer: KafkaProducer<String, Any> = KafkaProducer(producerConfig)
 
     init {
         consumer.subscribe(listOf(consumerTopic))
     }
-
     fun processRecordsWithDelay( delayInMs: Long) {
         try {
             while (true) {
@@ -65,6 +52,5 @@ class KafkaMirrorWorker(
         } catch (ex: Exception) {
             exitProcess(1)
         }
-
     }
 }
