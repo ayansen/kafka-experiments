@@ -16,11 +16,9 @@ package ayansen.programming.kafka.experiments
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import ayansen.programming.avro.SampleEvent
 import io.confluent.kafka.serializers.KafkaAvroDeserializer
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig
 import io.confluent.kafka.serializers.KafkaAvroSerializer
-import org.apache.avro.data.Json.SCHEMA
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord

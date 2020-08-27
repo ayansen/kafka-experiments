@@ -45,7 +45,6 @@ object Fixtures {
 
 
     fun getConsumerProperties(): Properties {
-
         val config = Properties()
         config[ConsumerConfig.GROUP_ID_CONFIG] = APP_GROUP_ID
         config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = Fixtures.KAFKA_BROKERS
