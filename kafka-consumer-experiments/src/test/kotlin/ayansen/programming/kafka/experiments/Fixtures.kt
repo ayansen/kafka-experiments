@@ -16,6 +16,14 @@
 package ayansen.programming.kafka.experiments
 
 import ayansen.programming.avro.SampleEvent
+import io.confluent.kafka.serializers.KafkaAvroDeserializer
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig
+import io.confluent.kafka.serializers.KafkaAvroSerializer
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.kafka.common.serialization.StringSerializer
+import java.util.*
 
 data class KeyValueTimestamp<T, U>(val key: T, val value: U, val timestamp: Long)
 
@@ -25,7 +33,6 @@ object Fixtures {
     const val KAFKA_BROKERS = "localhost:19092"
     const val SCHEMA_REGISTRY_URL = "http://localhost:8083"
     const val APP_GROUP_ID = "test_application"
-    const val CLIENT_ID = "test_client"
 
     fun generateSampleEvents(numberOfEvents: Int, eventName: String): List<KeyValueTimestamp<String, SampleEvent>> =
         (1..numberOfEvents).map {
@@ -35,4 +42,29 @@ object Fixtures {
                 .build()
             KeyValueTimestamp(eventName, event, it * 100L)
         }
+
+
+    fun getConsumerProperties(): Properties {
+
+        val config = Properties()
+        config[ConsumerConfig.GROUP_ID_CONFIG] = APP_GROUP_ID
+        config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = Fixtures.KAFKA_BROKERS
+        config["schema.registry.url"] = Fixtures.SCHEMA_REGISTRY_URL
+        config[KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG] = true
+        config[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "latest"
+        config[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = "true"
+        config[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java
+        config[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = KafkaAvroDeserializer::class.java
+        return config
+    }
+
+    fun getProducerProperties(): Properties {
+        val config = Properties()
+        config["bootstrap.servers"] = Fixtures.KAFKA_BROKERS
+        config["schema.registry.url"] = Fixtures.SCHEMA_REGISTRY_URL
+        config["acks"] = "all"
+        config[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        config[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = KafkaAvroSerializer::class.java
+        return config
+    }
 }

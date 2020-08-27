@@ -16,8 +16,11 @@ package ayansen.programming.kafka.experiments
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import ayansen.programming.avro.SampleEvent
 import io.confluent.kafka.serializers.KafkaAvroDeserializer
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig
 import io.confluent.kafka.serializers.KafkaAvroSerializer
+import org.apache.avro.data.Json.SCHEMA
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -145,7 +148,6 @@ object IntegrationTestUtils {
 
     private fun <K, V> getTestProducer(): KafkaProducer<K, V> {
         val config = Properties()
-        config["client.id"] = Fixtures.CLIENT_ID
         config["bootstrap.servers"] = Fixtures.KAFKA_BROKERS
         config["schema.registry.url"] = Fixtures.SCHEMA_REGISTRY_URL
         config["acks"] = "all"
@@ -160,6 +162,7 @@ object IntegrationTestUtils {
         config[ConsumerConfig.GROUP_ID_CONFIG] = "integration-test-consumers-${(0..100).random()}"
         config[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = Fixtures.KAFKA_BROKERS
         config["schema.registry.url"] = Fixtures.SCHEMA_REGISTRY_URL
+        config[KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG] = true
         config[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "latest"
         config[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = "true"
         config[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java

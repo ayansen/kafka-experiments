@@ -18,6 +18,7 @@ package ayansen.programming.kafka.experiments
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.slf4j.LoggerFactory
 import java.lang.Thread.sleep
 import java.time.Duration
 import java.util.*
@@ -31,6 +32,7 @@ class KafkaMirrorWorker(
 ) {
     companion object {
         private const val POLL_INTERVAL_IN_MS = 1000L
+        private val logger = LoggerFactory.getLogger(KafkaMirrorWorker::class.java)
     }
 
     private val consumer: KafkaConsumer<String, Any> = KafkaConsumer(consumerConfig)
@@ -40,17 +42,20 @@ class KafkaMirrorWorker(
         consumer.subscribe(listOf(consumerTopic))
     }
     fun processRecordsWithDelay( delayInMs: Long) {
-        try {
-            while (true) {
-                consumer.poll(Duration.ofMillis(POLL_INTERVAL_IN_MS)).map {
-                    sleep(delayInMs)
-                    ProducerRecord(producerTopic, it.key(), it.value())
-                }.forEach {
-                    producer.send(it)
+        consumer.use { consumer ->
+            try {
+                while (true) {
+                    consumer.poll(Duration.ofMillis(POLL_INTERVAL_IN_MS)).map {
+                        sleep(delayInMs)
+                        ProducerRecord(producerTopic, it.key(), it.value())
+                    }.forEach {
+                        producer.send(it)
+                    }
                 }
+            } catch (ex: Exception) {
+                logger.error("Worker died with exception ,", ex)
+                exitProcess(1)
             }
-        } catch (ex: Exception) {
-            exitProcess(1)
         }
     }
 }
