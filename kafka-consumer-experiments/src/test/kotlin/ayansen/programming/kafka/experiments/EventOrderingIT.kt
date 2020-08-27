@@ -16,18 +16,13 @@
 package ayansen.programming.kafka.experiments
 
 import ayansen.programming.avro.SampleEvent
-import ayansen.programming.kafka.experiments.Fixtures.APP_GROUP_ID
 import ayansen.programming.kafka.experiments.Fixtures.generateSampleEvents
 import ayansen.programming.kafka.experiments.Fixtures.getConsumerProperties
 import ayansen.programming.kafka.experiments.Fixtures.getProducerProperties
-import org.apache.avro.specific.SpecificData
-import org.apache.kafka.clients.admin.KafkaAdminClient
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-class KafkaMirrorIT {
+class EventOrderingIT {
 
     private val appConsumerTopic: String = "test_topic_v1"
     private val appProducerTopic: String = "test_topic_mirrored_v1"
@@ -39,7 +34,7 @@ class KafkaMirrorIT {
     )
 
     /**
-     * This test is that kafka records are in order for a perticular partition
+     * This test is to validate that kafka records are in order for a particular partition
      */
     @Test
     fun `test ordering of events for a particular partition assigned based on record key`() {
